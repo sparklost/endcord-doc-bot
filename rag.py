@@ -100,8 +100,7 @@ def split_chunks(data, size=1200, overlap=150):
 class RAGEngine:
     """RAG engine class"""
 
-    def __init__(
-        self, embed_model, docs_dir, db_file="vectors.json", server_host="localhost", server_port=11434, skip_files=[], list_files=[], skip_prefixes=[], skip_headers=[]):
+    def __init__(self, embed_model, docs_dir, db_file="vectors.json", server_host="localhost", server_port=11434, skip_files=[], list_files=[], skip_prefixes=[], skip_headers=[]):
         self.docs_dir = docs_dir
         self.db_file = db_file
         self.embed_model = embed_model
@@ -115,15 +114,18 @@ class RAGEngine:
 
 
     def get_embeddings(self, texts):
-        """Get embeddings from ollama server"""
+        """Get embeddings from OpenAI compatible backend"""
         payload = json.dumps({"model": self.embed_model, "input": texts})
         try:
             connection = http.client.HTTPConnection(self.server_host, self.server_port)
-            connection.request("POST", "/api/embed", body=payload, headers={"Content-Type": "application/json"})
+            connection.request("POST", "/v1/embeddings", body=payload, headers={"Content-Type": "application/json"})
             response = connection.getresponse()
-            data = json.loads(response.read().decode("utf-8"))
+            res_body = json.loads(response.read().decode("utf-8"))
             connection.close()
-            return data.get("embeddings", [])
+            if "data" in res_body:
+                return [item["embedding"] for item in res_body["data"]]
+            logger.error(f"Unexpected response structure: {res_body}")
+            return []
         except Exception as e:
             logger.error(f"Failed to fetch embeddings: {e}")
             return []

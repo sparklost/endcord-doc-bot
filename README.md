@@ -1,5 +1,5 @@
 # endcord-doc-bot
-An extension for [endcord](https://github.com/sparklost/endcord) discord TUI client, that implements LLM-powered documentation using ollama or OpenRouter.  
+An extension for [endcord](https://github.com/sparklost/endcord) discord TUI client, that implements LLM-powered documentation using llama-server or ollama.  
 This extension is intended **for bots only**.  
 
 ## Installing
@@ -42,15 +42,20 @@ After updating the source repository run `docbot-update` client command to updat
     Github repository containing source documentation that will be downloaded and saved to `ext_doc_bot_source_docs_dir`.
     If None then `ext_doc_bot_source_docs_dir` is expected to contain source documentation.
 - `ext_doc_bot_server_host = "localhost"`  
-    Address at which server is running.
+    Address at which OpenAI-compatible llm server is running.
 - `ext_doc_bot_server_port = 11434`  
-    Port at which server is running.
+    Port at which OpenAI-compatible llm server is running.
+- `ext_doc_bot_embed_host = "localhost"`  
+    Address at which OpenAI-compatible embedding server is running.  
+    This is intended for llama-server, since it cant handle multiple simultaneous models.  
+    If this is ollama, then same server can be used for bot embedding and main llm.
+- `ext_doc_bot_embed_port = 11434`  
+    Port at which OpenAI-compatible embedding server is running.
 - `ext_doc_bot_openrouter_token = None`  
     OpenRouter bearer token string. This only overrides model for LLM inference, **NOT for embedding**.  
     Embedding still has to be configured through ollama.
-- `ext_doc_bot_model = None`  
-    What LLM model to use, it mus be installed in the backend.
-    Must be exact model name from `ollama list`.
+- `ext_doc_bot_embed_model = None`  
+    Model used for embedding, also from ollama.
 - `ext_doc_bot_rag_top_k = 3`  
     How many entries to retrieve from RAG. Used both in AI and non-AI modes.
 - `ext_doc_bot_skip_files = []`  
@@ -62,8 +67,9 @@ After updating the source repository run `docbot-update` client command to updat
     Skip lines starting with this strings.
 - `ext_doc_bot_skip_headers" = ["Features", "License"]`  
     Skip these entire headers.
-- `ext_doc_bot_embed_model = None`  
-    Model used for embedding, also from ollama.
+- `ext_doc_bot_model = None`  
+    What LLM model to use, it mus be installed in the backend.
+    Must be exact model name from `ollama list`.
 - `ext_doc_bot_system_prompt = SYSTEM_PROMPT`  
     System prompt for LLM. Default is:
     "You are a helpful documentation assistant.\n\nInstructions: Answer using ONLY the provided context."

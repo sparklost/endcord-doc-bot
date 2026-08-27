@@ -13,7 +13,7 @@ from endcord import git, peripherals
 from rag import RAGEngine
 
 EXT_NAME = "LLM Doc Bot"
-EXT_VERSION = "0.1.1"
+EXT_VERSION = "0.1.2"
 EXT_ENDCORD_VERSION = "1.5.0"
 EXT_DESCRIPTION = "An extension that that implements LLM-powered documentation using ollama"
 EXT_SOURCE = "https://github.com/sparklost/endcord-doc-bot"
@@ -139,6 +139,8 @@ class Extension:
 
         self.server_host = app.config.get("ext_doc_bot_server_host", "localhost")
         self.server_port = int(app.config.get("ext_doc_bot_server_port", 11434))
+        self.embed_host = app.config.get("ext_doc_bot_embed_host", "localhost")
+        self.embed_port = int(app.config.get("ext_doc_bot_embed_port", 11434))
         self.openrouter_token = app.config.get("ext_doc_bot_openrouter_token", None)
 
         self.embed_model = app.config.get("ext_doc_bot_embed_model", None)
@@ -196,8 +198,8 @@ class Extension:
                 docs_dir=self.docs_dir,
                 db_file=self.database_path,
                 embed_model=self.embed_model,
-                server_host=self.server_host,
-                server_port=self.server_port,
+                server_host=self.embed_host,
+                server_port=self.embed_port,
                 skip_files=self.skip_files,
                 list_files=self.list_files,
                 skip_prefixes=self.skip_prefix,
@@ -234,61 +236,50 @@ class Extension:
                 time.sleep(0.1)
 
 
-    def query_openrouter(self, user_prompt):
-        """Qurey openrouter for inference"""
-        payload = json.dumps({
+    def query_llm(self, user_prompt):
+        """OpenAI-compatible inference for Ollama, llama-server, and OpenRouter"""
+        payload = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "max_tokens": self.limit_msg,
+            "max_tokens": self.limit_msg,  # Replaces Ollama's 'num_predict'
             "temperature": self.temp,
             "top_p": self.top_p,
             "repetition_penalty": self.repeat_penalty,
             "stream": False,
-        })
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.openrouter_token}",
         }
-        try:
-            conn = http.client.HTTPSConnection("openrouter.ai")
-            conn.request("POST", "/api/v1/chat/completions", body=payload, headers=headers)
-            res = conn.getresponse()
-            data = json.loads(res.read())
-            conn.close()
-            reply = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            return reply if reply else "Error: Received empty response from OpenRouter."
-        except Exception as e:
-            return f"Internal server error! {e}"
+        headers = {"Content-Type": "application/json"}
+        if self.openrouter_token:
+            host = "openrouter.ai"
+            port = 443
+            path = "/api/v1/chat/completions"
+            headers["Authorization"] = f"Bearer {self.openrouter_token}"
+            use_https = True
+        else:
+            host = self.server_host
+            port = self.server_port
+            path = "/v1/chat/completions"
+            use_https = False
 
-
-    def query_ollama(self, user_prompt):
-        """Query ollama server for inference"""
-        payload = json.dumps({
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "options": {
-                "num_predict": self.limit_msg,
-                "temperature": self.temp,
-                "top_p": self.top_p,
-                "repeat_penalty": self.repeat_penalty,
-            },
-            "stream": False,
-        })
         try:
-            conn = http.client.HTTPConnection(self.server_host, self.server_port)
-            conn.request("POST", "/api/chat", body=payload, headers={"Content-Type": "application/json"})
+            if use_https:
+                conn = http.client.HTTPSConnection(host, port)
+            else:
+                conn = http.client.HTTPConnection(host, port)
+            conn.request("POST", path, body=json.dumps(payload), headers=headers)
             res = conn.getresponse()
-            data = json.loads(res.read())
+            res_body = res.read().decode("utf-8")
             conn.close()
-            reply = data.get("message", {}).get("content", "")
-            return reply if reply else "Error: Received empty response from Ollama."
+            data = json.loads(res_body)
+            if "choices" in data and len(data["choices"]) > 0:
+                reply = data["choices"][0].get("message", {}).get("content", "")
+                return reply if reply else "Error: Received empty string."
+            logger.error(f"Unexpected response structure: {data}")
+            return "Error: Unexpected API response format."
         except Exception as e:
+            logger.error(f"LLM query failed: {e}")
             return f"Internal server error! {e}"
 
 
@@ -320,11 +311,7 @@ class Extension:
                         f"Documentation Context:\n{context_str}\n\n"
                         f"Question:\n{message_content}"
                     )
-                    if self.openrouter_token:
-                        reply = self.query_openrouter(user_prompt)
-                    else:
-                        reply = self.query_ollama(user_prompt)
-
+                    reply = self.query_llm(user_prompt)
                     ai_time = time.monotonic() - start_time
                     embeds = build_ai_embed(reply, doc_chunks, ai_time, self.model, self.source_repo, self.docs_dir)
 
