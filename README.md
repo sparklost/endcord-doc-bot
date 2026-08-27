@@ -1,5 +1,5 @@
 # endcord-doc-bot
-An extension for [endcord](https://github.com/sparklost/endcord) discord TUI client, that implements LLM-powered documentation using ollama.  
+An extension for [endcord](https://github.com/sparklost/endcord) discord TUI client, that implements LLM-powered documentation using ollama or OpenRouter.  
 This extension is intended **for bots only**.  
 
 ## Installing
@@ -45,6 +45,9 @@ After updating the source repository run `docbot-update` client command to updat
     Address at which server is running.
 - `ext_doc_bot_server_port = 11434`  
     Port at which server is running.
+- `ext_doc_bot_openrouter_token = None`  
+    OpenRouter bearer token string. This only overrides model for LLM inference, **NOT for embedding**.  
+    Embedding still has to be configured through ollama.
 - `ext_doc_bot_model = None`  
     What LLM model to use, it mus be installed in the backend.
     Must be exact model name from `ollama list`.

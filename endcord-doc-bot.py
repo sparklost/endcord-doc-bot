@@ -13,7 +13,7 @@ from endcord import git, peripherals
 from rag import RAGEngine
 
 EXT_NAME = "LLM Doc Bot"
-EXT_VERSION = "0.5.0"
+EXT_VERSION = "0.1.1"
 EXT_ENDCORD_VERSION = "1.5.0"
 EXT_DESCRIPTION = "An extension that that implements LLM-powered documentation using ollama"
 EXT_SOURCE = "https://github.com/sparklost/endcord-doc-bot"
@@ -139,6 +139,7 @@ class Extension:
 
         self.server_host = app.config.get("ext_doc_bot_server_host", "localhost")
         self.server_port = int(app.config.get("ext_doc_bot_server_port", 11434))
+        self.openrouter_token = app.config.get("ext_doc_bot_openrouter_token", None)
 
         self.embed_model = app.config.get("ext_doc_bot_embed_model", None)
         self.top_k = int(app.config.get("ext_doc_bot_rag_top_k", 3))
@@ -233,6 +234,64 @@ class Extension:
                 time.sleep(0.1)
 
 
+    def query_openrouter(self, user_prompt):
+        """Qurey openrouter for inference"""
+        payload = json.dumps({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "max_tokens": self.limit_msg,
+            "temperature": self.temp,
+            "top_p": self.top_p,
+            "repetition_penalty": self.repeat_penalty,
+            "stream": False,
+        })
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openrouter_token}",
+        }
+        try:
+            conn = http.client.HTTPSConnection("openrouter.ai")
+            conn.request("POST", "/api/v1/chat/completions", body=payload, headers=headers)
+            res = conn.getresponse()
+            data = json.loads(res.read())
+            conn.close()
+            reply = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return reply if reply else "Error: Received empty response from OpenRouter."
+        except Exception as e:
+            return f"Internal server error! {e}"
+
+
+    def query_ollama(self, user_prompt):
+        """Query ollama server for inference"""
+        payload = json.dumps({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "options": {
+                "num_predict": self.limit_msg,
+                "temperature": self.temp,
+                "top_p": self.top_p,
+                "repeat_penalty": self.repeat_penalty,
+            },
+            "stream": False,
+        })
+        try:
+            conn = http.client.HTTPConnection(self.server_host, self.server_port)
+            conn.request("POST", "/api/chat", body=payload, headers={"Content-Type": "application/json"})
+            res = conn.getresponse()
+            data = json.loads(res.read())
+            conn.close()
+            reply = data.get("message", {}).get("content", "")
+            return reply if reply else "Error: Received empty response from Ollama."
+        except Exception as e:
+            return f"Internal server error! {e}"
+
+
     def worker(self):
         """Worker thread that processes queries, retrieves context, and formats output."""
         while self.run:
@@ -261,32 +320,11 @@ class Extension:
                         f"Documentation Context:\n{context_str}\n\n"
                         f"Question:\n{message_content}"
                     )
-                    endpoint = "/api/chat"
-                    payload = json.dumps({
-                        "model": self.model,
-                        "messages": [
-                            {"role": "system", "content": self.system_prompt},
-                            {"role": "user", "content": user_prompt},
-                        ],
-                        "options": {
-                            "num_predict": self.limit_msg,
-                            "temperature": self.temp,
-                            "top_p": self.top_p,
-                            "repeat_penalty": self.repeat_penalty,
-                        },
-                        "stream": False,
-                    })
-                    try:
-                        connection = http.client.HTTPConnection(self.server_host, self.server_port)
-                        connection.request("POST", endpoint, body=payload, headers={"Content-Type": "application/json"})
-                        response = connection.getresponse()
-                        data = json.loads(response.read())
-                        reply = data.get("message", {}).get("content", "")
-                        if not reply:
-                            reply = "Error: Received empty response from the server."
-                        connection.close()
-                    except Exception as e:
-                        reply = f"Internal server error! {e}"
+                    if self.openrouter_token:
+                        reply = self.query_openrouter(user_prompt)
+                    else:
+                        reply = self.query_ollama(user_prompt)
+
                     ai_time = time.monotonic() - start_time
                     embeds = build_ai_embed(reply, doc_chunks, ai_time, self.model, self.source_repo, self.docs_dir)
 
