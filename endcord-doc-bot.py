@@ -206,7 +206,7 @@ class Extension:
                 skip_headers=self.skip_headers,
             )
             self.rag.load()
-            logger.info(f"Connecting to ollama at {self.server_host}:{self.server_port}")
+            logger.info(f"Connecting to {self.server_host}:{self.server_port}")
             threading.Thread(target=self.worker, daemon=True).start()
         else:
             self.rag.load()
@@ -244,7 +244,7 @@ class Extension:
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "max_tokens": self.limit_msg,  # Replaces Ollama's 'num_predict'
+            "max_tokens": self.limit_msg,
             "temperature": self.temp,
             "top_p": self.top_p,
             "repetition_penalty": self.repeat_penalty,
