@@ -13,7 +13,7 @@ from endcord import git, peripherals
 from rag import RAGEngine
 
 EXT_NAME = "LLM Doc Bot"
-EXT_VERSION = "0.1.2"
+EXT_VERSION = "0.1.3"
 EXT_ENDCORD_VERSION = "1.5.0"
 EXT_DESCRIPTION = "An extension that that implements LLM-powered documentation using ollama"
 EXT_SOURCE = "https://github.com/sparklost/endcord-doc-bot"
@@ -291,12 +291,12 @@ class Extension:
                 use_ai = use_ai and self.model
                 self.typing_channel_id = channel_id
                 self.typing_started = int(time.time())
-                start_time = time.monotonic()
+                start_time = time.time()
                 doc_chunks = self.rag.retrieve(message_content, top=self.top_k)
 
                 # build embed
                 if not use_ai:
-                    ai_time = time.monotonic() - start_time
+                    ai_time = time.time() - start_time
                     embeds = build_doc_embed(doc_chunks, ai_time, self.embed_model, self.source_repo, self.docs_dir)
                 else:
                     prompt_len = 216 + len(self.system_prompt) + len(message_content)
@@ -312,7 +312,7 @@ class Extension:
                         f"Question:\n{message_content}"
                     )
                     reply = self.query_llm(user_prompt)
-                    ai_time = time.monotonic() - start_time
+                    ai_time = time.time() - start_time
                     embeds = build_ai_embed(reply, doc_chunks, ai_time, self.model, self.source_repo, self.docs_dir)
 
                 # send message to discord
