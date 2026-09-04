@@ -13,7 +13,7 @@ from endcord import git, peripherals
 from rag import RAGEngine
 
 EXT_NAME = "LLM Doc Bot"
-EXT_VERSION = "0.1.3"
+EXT_VERSION = "0.1.4"
 EXT_ENDCORD_VERSION = "1.5.0"
 EXT_DESCRIPTION = "An extension that that implements LLM-powered documentation using ollama"
 EXT_SOURCE = "https://github.com/sparklost/endcord-doc-bot"
@@ -123,6 +123,7 @@ class Extension:
 
         self.trigger_doc = app.config.get("ext_doc_bot_trigger_doc", "!doc")
         self.trigger_ai = app.config.get("ext_doc_bot_trigger_ai", "!doc-ai")
+        self.trigger_doc_num = None
         send_typing = bool(app.config.get("ext_doc_bot_send_typing", True))
         self.reply = bool(app.config.get("ext_doc_bot_reply", False))
         self.ping = bool(app.config.get("ext_doc_bot_reply_ping", True))
@@ -222,6 +223,7 @@ class Extension:
             self.trigger_doc += " "
         if not self.trigger_ai.endswith(" "):
             self.trigger_ai += " "
+        self.trigger_doc_num = self.trigger_doc.strip() + "-"   # also later must check if number is after
 
 
     def typing_sender(self):
@@ -287,12 +289,12 @@ class Extension:
         """Worker thread that processes queries, retrieves context, and formats output."""
         while self.run:
             try:
-                guild_id, channel_id, message_id, message_content, use_ai = self.message_send_queue.get()
+                guild_id, channel_id, message_id, message_content,  top_k, use_ai = self.message_send_queue.get()
                 use_ai = use_ai and self.model
                 self.typing_channel_id = channel_id
                 self.typing_started = int(time.time())
                 start_time = time.time()
-                doc_chunks = self.rag.retrieve(message_content, top=self.top_k)
+                doc_chunks = self.rag.retrieve(message_content, top=top_k)
 
                 # build embed
                 if not use_ai:
@@ -347,6 +349,8 @@ class Extension:
         content = message["content"]
         if content.startswith(self.trigger_ai) or content.startswith(self.trigger_doc):
             return True
+        if content.startswith(self.trigger_doc_num) and content[len(self.trigger_doc_num) - 1].isdigit():
+            return True
         return False
 
 
@@ -361,9 +365,15 @@ class Extension:
             if raw_content.startswith(self.trigger_ai):
                 use_ai = True
                 content = raw_content[len(self.trigger_ai):].strip()
+                top_k = self.top_k
             elif raw_content.startswith(self.trigger_doc):
                 use_ai = False
                 content = raw_content[len(self.trigger_doc):].strip()
+                top_k = self.top_k
+            elif raw_content.startswith(self.trigger_doc_num) and content[len(self.trigger_doc_num) - 1].isdigit():
+                use_ai = False
+                content = raw_content[len(self.trigger_doc_num) + 1:].strip()
+                top_k = int(content[len(self.trigger_doc_num) - 1])
             else:
                 return
             if not content and data["referenced_message"]:
@@ -388,7 +398,7 @@ class Extension:
                 body += f" {data.get("username")} used {"AI" if use_ai else "DOCS"}: {raw_content.strip()}"
                 logger.debug(body)
 
-            self.message_send_queue.put((guild_id, channel_id, data["id"], content, use_ai))
+            self.message_send_queue.put((guild_id, channel_id, data["id"], content, top_k, use_ai))
 
 
     def on_execute_command(self, command_text, chat_sel, tree_sel):   # noqa

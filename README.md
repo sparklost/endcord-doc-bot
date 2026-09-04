@@ -9,6 +9,11 @@ Available options:
 - Run `endcord -i https://github.com/sparklost/endcord-doc-bot`
 - Or use endcord client-side command `install_extension sparklost/endcord-doc-bot`
 
+## Usage
+- Send `!doc my query message` (or whatever you set for triggers) in configured channels, Bot will respond with top_k number of top matching documentation entries.
+- Use `!doc-4` (or any other single-digit number) to tell bot to respond with that number of matching entries.
+- Use `!doc-ai some question message` to get LLM rephrased answer with source link.
+
 ## Configuration
 All extension options are under `[main]` section in endcord config. This extension options are always prefixed with `ext_doc_bot_`.  
 Either ollama or llama-server is required to be running at configured address.  
