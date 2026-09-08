@@ -13,7 +13,7 @@ from endcord import git, peripherals
 from rag import RAGEngine
 
 EXT_NAME = "LLM Doc Bot"
-EXT_VERSION = "0.1.4"
+EXT_VERSION = "0.1.5"
 EXT_ENDCORD_VERSION = "1.5.0"
 EXT_DESCRIPTION = "An extension that that implements LLM-powered documentation using ollama"
 EXT_SOURCE = "https://github.com/sparklost/endcord-doc-bot"
@@ -349,7 +349,7 @@ class Extension:
         content = message["content"]
         if content.startswith(self.trigger_ai) or content.startswith(self.trigger_doc):
             return True
-        if content.startswith(self.trigger_doc_num) and content[len(self.trigger_doc_num) - 1].isdigit():
+        if content.startswith(self.trigger_doc_num) and content[len(self.trigger_doc_num)].isdigit():
             return True
         return False
 
@@ -370,10 +370,10 @@ class Extension:
                 use_ai = False
                 content = raw_content[len(self.trigger_doc):].strip()
                 top_k = self.top_k
-            elif raw_content.startswith(self.trigger_doc_num) and content[len(self.trigger_doc_num) - 1].isdigit():
+            elif raw_content.startswith(self.trigger_doc_num) and raw_content[len(self.trigger_doc_num)].isdigit():
                 use_ai = False
                 content = raw_content[len(self.trigger_doc_num) + 1:].strip()
-                top_k = int(content[len(self.trigger_doc_num) - 1])
+                top_k = int(raw_content[len(self.trigger_doc_num)])
             else:
                 return
             if not content and data["referenced_message"]:
