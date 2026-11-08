@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def split_markdown_headers(text, skip_prefixes, skip_headers):
-    """Split markdown text on headers and return list of contents with metadata."""
+    """Split markdown text on headers and return list of contents with metadata"""
     headers = [("###", "H3"), ("##", "H2"), ("#", "H1")]
     sections = []
     hierarchy = {}

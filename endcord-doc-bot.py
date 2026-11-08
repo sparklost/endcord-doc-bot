@@ -13,8 +13,8 @@ from endcord import git, peripherals
 from rag import RAGEngine
 
 EXT_NAME = "LLM Doc Bot"
-EXT_VERSION = "0.1.5"
-EXT_ENDCORD_VERSION = "1.5.0"
+EXT_VERSION = "0.1.6"
+EXT_ENDCORD_VERSION = "1.6.0"
 EXT_DESCRIPTION = "An extension that that implements LLM-powered documentation using ollama"
 EXT_SOURCE = "https://github.com/sparklost/endcord-doc-bot"
 EXT_COMMAND_ASSIST = (("docbot_update - Update docs to latest git commit for documentation bot", "docbot_update"),)
@@ -80,7 +80,7 @@ def build_doc_embed(chunks, ai_time, model, repo, search_dir):
 
 
 def build_ai_embed(reply, chunks, ai_time, model, repo, search_dir):
-    """Constructs a structured embed for LLM generated responses."""
+    """Construct a structured embed for LLM generated responses"""
     sources = set()
     for chunk in chunks:
         source = chunk.split("\n\n", 1)[0][6:].strip().rstrip("]")
@@ -286,7 +286,7 @@ class Extension:
 
 
     def worker(self):
-        """Worker thread that processes queries, retrieves context, and formats output."""
+        """Worker thread that processes queries, retrieves context, and formats output"""
         while self.run:
             try:
                 guild_id, channel_id, message_id, message_content,  top_k, use_ai = self.message_send_queue.get()
